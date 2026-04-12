@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ユニフォームアンケート</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background-color: #f3f4f6; font-family: sans-serif; }
+        .form-container { max-width: 1000px; margin: 2rem auto; background: white; padding: 2rem; border-radius: 12px; box-shadow: 0 10px 15px rgba(0,0,0,0.1); border-top: 10px solid #1e40af; }
+        
+        .design-row { display: grid; grid-template-columns: 60px 120px 1fr 200px 220px; border-bottom: 1px solid #eee; align-items: center; }
+        .design-header { background: #f8fafc; font-weight: bold; padding: 0.75rem; }
+        .design-cell { padding: 1rem 0.75rem; }
+        
+        .thumbnail-container { width: 100%; position: relative; border-radius: 6px; overflow: hidden; background: #f1f5f9; border: 1px solid #e2e8f0; min-height: 100px; display: flex; align-items: center; justify-content: center; cursor: zoom-in; transition: transform 0.2s; }
+        .thumbnail-container:hover { transform: scale(1.02); border-color: #1e40af; }
+        .design-thumb { width: 100%; height: auto; display: block; object-fit: cover; }
+        
+        .rating-flex { display: flex; justify-content: space-between; gap: 4px; }
+        .rating-option { display: flex; flex-direction: column; align-items: center; flex: 1; }
+
+        #imageModal { display: none; position: fixed; z-index: 9999; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); align-items: center; justify-content: center; cursor: zoom-out; }
+        #modalImage { max-width: 90%; max-height: 90%; border-radius: 8px; box-shadow: 0 0 30px rgba(0,0,0,0.5); }
+        .modal-close { position: absolute; top: 20px; right: 30px; color: white; font-size: 40px; font-weight: bold; cursor: pointer; }
+
+        @media (max-width: 768px) {
+            .design-row { grid-template-columns: 1fr; padding: 1.5rem 1rem; }
+            .design-header { display: none; }
+            .design-cell::before { content: attr(data-label); display: block; font-size: 0.75rem; color: #1e40af; font-weight: bold; margin-bottom: 4px; }
+            .thumbnail-container { max-width: 300px; }
+        }
+    </style>
+</head>
+<body>
+
+<div id="imageModal" onclick="closeModal()">
+    <span class="modal-close">&times;</span>
+    <img id="modalImage" src="" alt="拡大画像">
+</div>
+
+<div class="form-container">
+    <header class="mb-10 text-center">
+        <h1 class="text-4xl font-extrabold text-gray-900 mb-3 text-blue-900">ユニフォームアンケート</h1>
+        <p class="text-gray-600">デザイン案を確認し、評価を入力してください。画像をクリックすると拡大します。</p>
+    </header>
+
+    <form id="uniformForm">
+        <!-- 基本情報 -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold border-l-4 border-blue-700 pl-3 mb-6">基本情報</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div><label class="block font-bold mb-1">お名前 *</label><input type="text" name="name" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block font-bold mb-1">メールアドレス *</label><input type="email" name="email" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block font-bold mb-1">年齢 *</label><input type="number" name="age" min="0" max="120" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500" placeholder="例: 35"></div>
+                <div>
+                    <label class="block font-bold mb-1">現行サイズ *</label>
+                    <select name="current_size" required class="w-full p-2 border rounded">
+                        <option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="O">O</option><option value="XO">XO</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block font-bold mb-1">希望サイズ</label>
+                    <select name="desired_size" class="w-full p-2 border rounded">
+                        <option value="">現行通り</option>
+                        <option value="S">S</option><option value="M">M</option><option value="L">L</option><option value="O">O</option><option value="XO">XO</option>
+                    </select>
+                </div>
+                <div><label class="block font-bold mb-1">現在の背番号 *</label><input type="number" name="current_number" required class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></div>
+                <div><label class="block font-bold mb-1">希望背番号（空欄なら現行通り）</label><input type="text" name="desired_number" class="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500"></div>
+            </div>
+        </section>
+
+        <!-- デザイン評価 -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold border-l-4 border-blue-700 pl-3 mb-6">デザイン評価</h2>
+            <div class="overflow-x-auto border rounded shadow-sm">
+                <div class="design-row design-header">
+                    <div>No</div>
+                    <div>名称</div>
+                    <div>コンセプト</div>
+                    <div>画像（クリックで拡大）</div>
+                    <div class="text-center">評価(5点満点)</div>
+                </div>
+                <div id="designList"></div>
+            </div>
+        </section>
+
+        <!-- ご意見等 -->
+        <section class="mb-12">
+            <h2 class="text-2xl font-bold border-l-4 border-blue-700 pl-3 mb-6">ご意見等</h2>
+            <textarea name="comments" rows="4" class="w-full p-3 border rounded focus:ring-2 focus:ring-blue-500" placeholder="自由にご記入ください"></textarea>
+        </section>
+
+        <div id="statusMessage" class="hidden mb-6 p-6 rounded-xl text-center font-bold"></div>
+        <button type="submit" id="submitBtn" class="w-full bg-blue-700 text-white font-bold py-5 rounded-xl shadow-lg hover:bg-blue-800 transition">回答を送信する</button>
+    </form>
+</div>
+
+<script>
+    const GAS_WEBAPP_URL = "https://script.google.com/macros/s/AKfycbybwRm8bwTiy6nOoD9EOoENskFXE5OjQtnQl3TUIAEGwjq5seSh_l5DDxazdJUqsvURDA/exec";
+
+    function convertDriveLink(url) {
+        if (!url) return "";
+        const driveRegex = /\/file\/d\/([a-zA-Z0-9_-]+)/;
+        const match = url.match(driveRegex);
+        if (match && match[1]) {
+            const fileId = match[1];
+            return `https://drive.google.com/thumbnail?id=${fileId}&sz=w1000`;
+        }
+        return url;
+    }
+
+    function openModal(src) {
+        const modal = document.getElementById('imageModal');
+        const modalImg = document.getElementById('modalImage');
+        modal.style.display = "flex";
+        modalImg.src = src;
+        document.body.style.overflow = "hidden";
+    }
+
+    function closeModal() {
+        document.getElementById('imageModal').style.display = "none";
+        document.body.style.overflow = "auto";
+    }
+
+    const designData = [
+        {no:1, name:'案1', concept:'体側と襟にグリーンの迷彩', thumb:'https://drive.google.com/file/d/1d6cIbVLGIy0exJ9GCRsZFdHWDYEfCSM6/'},
+        {no:2, name:'案2', concept:'胴体部分にライトグリーンの迷彩', thumb:'https://drive.google.com/file/d/1b91wu1vclDZbh4iPiQ920NGnTxn_ZS_L/'},
+        {no:3, name:'案3', concept:'現在のユニフォームをベースに、白地→迷彩アレンジ。', thumb:'https://drive.google.com/file/d/1YP3-sTdlkrATQyLKFs9zsr0a4Zw1cHpW/'},
+        {no:4, name:'案4', concept:'現在のユニフォームをベースにたすきのような迷彩ラインを追加。', thumb:'https://drive.google.com/file/d/1vgTjfUtza-GZfJ5rlkjz8cTQtd7knMev/'},
+        {no:5, name:'案5', concept:'白を基調に体側に蛍光系の緑迷彩、ラインはカーキを使用。', thumb:'https://drive.google.com/file/d/1d1m-ApkYl1OhWHMnAKi4Go_JzNiWmLlF/'},
+        {no:6, name:'案6', concept:'白を基調に、若草色イメージのトライアングルを散らしてライトなイメージを表現。', thumb:'https://drive.google.com/file/d/15jEwlMtpkhXpCn1kBm9Tly4f1KNZHVxj/'},
+        {no:7, name:'案7', concept:'白を基調に、エメラルドグリーンのトライアングル増量、ロゴもシルバーにして涼しげなイメージを表現。', thumb:'https://drive.google.com/file/d/1Cje6A2C4lC1pgQXAqvCRwnuZvE-ZyeG-/'},
+        {no:8, name:'案8', concept:'今のユニフォームをベースに半面をグリーンのサンライズグラデーション', thumb:'https://drive.google.com/file/d/1IsAIWChthDTaEoQ8i4E0lT2Lr8kF3TTx/'},
+        {no:9, name:'案9', concept:'エメラルドグリーンで涼し気に、スマートなイメージを演出。', thumb:'https://drive.google.com/file/d/1-gcRzwOyC5MfdVCQjizXYT5-nKLCYyv-/'},
+        {no:10, name:'案10', concept:'現行通りのものを昇華ユニとして作成。（イメージはありません）', thumb:''}
+    ];
+
+    const list = document.getElementById('designList');
+    designData.forEach(d => {
+        let ratings = '';
+        [5,4,3,2,1].forEach(v => {
+            ratings += `<div class="rating-option">
+                            <input type="radio" name="EN${d.no}" value="${v}" ${v==3?'checked':''} required>
+                            <span class="text-xs font-bold text-gray-500">${v}</span>
+                        </div>`;
+        });
+
+        const displayThumb = convertDriveLink(d.thumb);
+        const imgEl = displayThumb 
+            ? `<div class="thumbnail-container" onclick="openModal('${displayThumb}')">
+                <img src="${displayThumb}" alt="${d.name}" class="design-thumb" onerror="this.parentElement.innerHTML='<div class=&quot;p-2 text-[10px] text-red-500&quot;>画像を表示できません</div>'">
+               </div>`
+            : `<div class="p-6 text-center text-gray-400 text-xs bg-gray-50 rounded-lg">画像準備中</div>`;
+
+        const div = document.createElement('div');
+        div.className = 'design-row';
+        div.innerHTML = `
+            <div class="design-cell font-bold text-blue-700" data-label="No">${d.no}</div>
+            <div class="design-cell font-bold" data-label="名称">${d.name}</div>
+            <div class="design-cell text-xs text-gray-600" data-label="コンセプト">${d.concept}</div>
+            <div class="design-cell" data-label="画像">${imgEl}</div>
+            <div class="design-cell" data-label="評価"><div class="rating-flex">${ratings}</div></div>
+        `;
+        list.appendChild(div);
+    });
+
+    document.getElementById('uniformForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        const btn = document.getElementById('submitBtn');
+        const msg = document.getElementById('statusMessage');
+        btn.disabled = true; btn.innerText = '送信中...';
+        
+        const fd = new FormData(this);
+        let dNum = fd.get('desired_number').trim();
+        if(!dNum) dNum = "（" + fd.get('current_number') + "）";
+        let dSize = fd.get('desired_size');
+        if(!dSize) dSize = "（" + fd.get('current_size') + "）";
+
+        const payload = {
+            name: fd.get('name'), email: fd.get('email'), age: fd.get('age'),
+            current_size: fd.get('current_size'), desired_size: dSize,
+            current_number: fd.get('current_number'), desired_number: dNum,
+            EN1: fd.get('EN1'), EN2: fd.get('EN2'), EN3: fd.get('EN3'), EN4: fd.get('EN4'), EN5: fd.get('EN5'),
+            EN6: fd.get('EN6'), EN7: fd.get('EN7'), EN8: fd.get('EN8'), EN9: fd.get('EN9'), EN10: fd.get('EN10'),
+            comments: fd.get('comments')
+        };
+
+        try {
+            await fetch(GAS_WEBAPP_URL, { method: "POST", mode: "no-cors", headers: { "Content-Type": "text/plain" }, body: JSON.stringify(payload) });
+            btn.remove();
+            msg.classList.remove('hidden'); msg.classList.add('bg-green-100', 'text-green-800', 'border', 'border-green-200');
+            msg.innerHTML = "🎉 送信完了！回答控えをメールで送信しました。<br><span class='text-sm font-normal'>同じアドレスで再送信すれば、いつでも内容を修正できます。</span>";
+        } catch (err) {
+            btn.disabled = false; btn.innerText = '回答を送信する';
+            msg.classList.remove('hidden'); msg.classList.add('bg-red-100', 'text-red-800');
+            msg.innerText = "エラーが発生しました。設定を確認してください。";
+        }
+    });
+</script>
+</body>
+</html>
